@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 240" width="240" height="240">
+  <defs>
+    <linearGradient id="logoBg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#090B10" />
+      <stop offset="100%" stop-color="#161C28" />
+    </linearGradient>
+    <linearGradient id="logoBrass" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#F3D87D" />
+      <stop offset="50%" stop-color="#D4AF37" />
+      <stop offset="100%" stop-color="#9A7410" />
+    </linearGradient>
+  </defs>
+  <rect width="240" height="240" rx="52" fill="url(#logoBg)" stroke="url(#logoBrass)" stroke-width="4" />
+  <circle cx="120" cy="120" r="86" fill="none" stroke="#D4AF37" stroke-opacity="0.28" stroke-width="2" />
+  <circle cx="120" cy="120" r="70" fill="#111622" stroke="url(#logoBrass)" stroke-width="2.5" />
+  <text x="120" y="148" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif" font-size="86" font-weight="bold" fill="url(#logoBrass)">A</text>
+  <circle cx="182" cy="58" r="8" fill="#10B981" stroke="#090B10" stroke-width="3" />
+</svg>

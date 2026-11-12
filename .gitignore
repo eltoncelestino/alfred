@@ -1,0 +1,60 @@
+# ============================================================================
+# ALFRED — GITIGNORE (SEGURANÇA E BUILD)
+# ============================================================================
+
+# Dependências
+node_modules/
+
+# Expo e Builds
+.expo/
+.expo-shared/
+.expo-home/
+dist/
+web-build/
+expo-env.d.ts
+
+# Pastas nativas geradas (CNG)
+/ios
+/android
+
+# Variáveis de ambiente e segredos locais (NUNCA versionar)
+.env
+.env.*
+!.env.example
+config.local.js
+
+# Credenciais locais do servidor IMAP / sessões
+server/email-credentials.json
+*credentials*.json
+*secret*.json
+*service-account*.json
+
+# Certificados e chaves privadas
+*.jks
+*.p8
+*.p12
+*.key
+*.pem
+*.mobileprovision
+*.keystore
+
+# Arquivos temporários, cache e binários nativos
+.kotlin/
+*.orig.*
+.metro-health-check*
+*.tsbuildinfo
+*.bak
+*.tmp
+*.swp
+
+# Logs
+npm-debug.*
+yarn-debug.*
+yarn-error.*
+*.log
+
+# Sistema Operacional e IDEs
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

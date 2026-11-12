@@ -1,0 +1,78 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 380" width="100%" height="100%">
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#090B10" />
+      <stop offset="55%" stop-color="#11151E" />
+      <stop offset="100%" stop-color="#181E2C" />
+    </linearGradient>
+    <linearGradient id="brassGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#F3D87D" />
+      <stop offset="50%" stop-color="#D4AF37" />
+      <stop offset="100%" stop-color="#AA8214" />
+    </linearGradient>
+    <radialGradient id="glowGrad" cx="20%" cy="50%" r="45%">
+      <stop offset="0%" stop-color="#D4AF37" stop-opacity="0.18" />
+      <stop offset="100%" stop-color="#090B10" stop-opacity="0" />
+    </radialGradient>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1200" height="380" rx="20" fill="url(#bgGrad)" />
+  <rect width="1200" height="380" rx="20" fill="url(#glowGrad)" />
+  <rect x="1.5" y="1.5" width="1197" height="377" rx="18.5" fill="none" stroke="#D4AF37" stroke-opacity="0.35" stroke-width="1.5" />
+
+  <!-- Subtle Acoustic Soundwaves on Right -->
+  <g stroke="#D4AF37" stroke-opacity="0.14" fill="none" stroke-width="2">
+    <circle cx="1060" cy="190" r="70" />
+    <circle cx="1060" cy="190" r="115" />
+    <circle cx="1060" cy="190" r="160" />
+    <circle cx="1060" cy="190" r="210" />
+  </g>
+
+  <!-- Audio Waveform Bars -->
+  <g fill="url(#brassGrad)" opacity="0.85">
+    <rect x="998" y="172" width="6" height="36" rx="3" />
+    <rect x="1012" y="154" width="6" height="72" rx="3" />
+    <rect x="1026" y="136" width="6" height="108" rx="3" />
+    <rect x="1040" y="160" width="6" height="60" rx="3" />
+    <rect x="1054" y="122" width="6" height="136" rx="3" />
+    <rect x="1068" y="148" width="6" height="84" rx="3" />
+    <rect x="1082" y="132" width="6" height="116" rx="3" />
+    <rect x="1096" y="162" width="6" height="56" rx="3" />
+    <rect x="1110" y="176" width="6" height="28" rx="3" />
+  </g>
+
+  <!-- Monogram Emblem -->
+  <g transform="translate(72, 92)">
+    <circle cx="72" cy="72" r="72" fill="#121722" stroke="url(#brassGrad)" stroke-width="2.5" />
+    <circle cx="72" cy="72" r="58" fill="none" stroke="#D4AF37" stroke-opacity="0.25" stroke-width="1" stroke-dasharray="4 4" />
+    <text x="72" y="95" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif" font-size="68" font-weight="bold" fill="url(#brassGrad)">A</text>
+  </g>
+
+  <!-- Title & Typography -->
+  <g transform="translate(248, 108)">
+    <rect x="0" y="0" width="236" height="26" rx="13" fill="#D4AF37" fill-opacity="0.14" stroke="#D4AF37" stroke-opacity="0.4" />
+    <circle cx="16" cy="13" r="4" fill="#10B981" />
+    <text x="28" y="17" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif" font-size="11" font-weight="700" fill="#F3D87D" letter-spacing="1.5">ASSISTENTE PESSOAL DE VOZ</text>
+
+    <text x="0" y="76" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif" font-size="54" font-weight="800" fill="#F8FAFC" letter-spacing="1">ALFRED</text>
+    <text x="0" y="110" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif" font-size="19" font-weight="400" fill="#94A3B8">
+      Mordomo Digital para iPhone &amp; Android · Rotina Matinal Pós-Alarme, Voz Neural, Agenda, E-mails e Clima
+    </text>
+
+    <!-- Feature Pills -->
+    <g transform="translate(0, 142)" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif" font-size="12" font-weight="600" fill="#E2E8F0">
+      <rect x="0" y="0" width="148" height="32" rx="8" fill="#161C28" stroke="#263042" />
+      <text x="74" y="20" text-anchor="middle">Wake-Word "Alfred"</text>
+
+      <rect x="160" y="0" width="175" height="32" rx="8" fill="#161C28" stroke="#263042" />
+      <text x="247" y="20" text-anchor="middle">Gatilho Alarmy &amp; iOS</text>
+
+      <rect x="347" y="0" width="175" height="32" rx="8" fill="#161C28" stroke="#263042" />
+      <text x="434" y="20" text-anchor="middle">Voz pt-BR-AntonioNeural</text>
+
+      <rect x="534" y="0" width="168" height="32" rx="8" fill="#161C28" stroke="#263042" />
+      <text x="618" y="20" text-anchor="middle">Clean Architecture</text>
+    </g>
+  </g>
+</svg>
