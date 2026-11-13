@@ -14,7 +14,7 @@ const quotaExhaustedModels = new Set(INITIAL_EXHAUSTED_MODELS);
 
 /**
  * Strategy Adapter: Adapta o payload da conversa conforme a família do modelo
- * (Gemini suporta system_instruction nativo; Gemma 4 recebe instrução inline).
+ * (Gemini 3.x/4 suporta system_instruction nativo; Gemma 4 recebe instrução inline).
  */
 function buildModelRequestBody(modelName, promptOrHistory) {
   const historyArray = Array.isArray(promptOrHistory)
@@ -61,9 +61,14 @@ export const GeminiGateway = {
   async generateAssistantReply(promptOrHistory) {
     let lastError = null;
 
-    for (const model of MODELOS_TEXTO_GEMINI) {
-      if (quotaExhaustedModels.has(model)) continue;
+    // Se todos os modelos tiverem sido marcados anteriormente, limpa o cache para tentar de novo
+    const availableModels = MODELOS_TEXTO_GEMINI.filter(
+      (m) => !quotaExhaustedModels.has(m)
+    );
+    const modelsToTry =
+      availableModels.length > 0 ? availableModels : MODELOS_TEXTO_GEMINI;
 
+    for (const model of modelsToTry) {
       try {
         const body = buildModelRequestBody(model, promptOrHistory);
         const url = `${ENDPOINTS.geminiBaseUrl}/${model}:generateContent?key=${GEMINI_API_KEY}`;
@@ -75,7 +80,7 @@ export const GeminiGateway = {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(body),
           },
-          14000
+          20000
         );
 
         const data = await response.json();
@@ -102,13 +107,20 @@ export const GeminiGateway = {
     }
 
     console.error('[GeminiGateway] Todos os modelos falharam:', lastError);
-    return 'Desculpe, tive uma oscilação momentânea na conexão. Poderia repetir?';
+    if (lastError && AppError.isQuotaExceeded(lastError.message)) {
+      throw lastError;
+    }
+    return 'Perdão, tive uma oscilação momentânea na conexão. Poderia repetir?';
   },
 
   async transcribeVoiceCommand(base64Audio, mimeType = 'audio/mp4') {
-    for (const model of MODELOS_AUDIO_GEMINI) {
-      if (quotaExhaustedModels.has(model)) continue;
+    const availableModels = MODELOS_AUDIO_GEMINI.filter(
+      (m) => !quotaExhaustedModels.has(m)
+    );
+    const modelsToTry =
+      availableModels.length > 0 ? availableModels : MODELOS_AUDIO_GEMINI;
 
+    for (const model of modelsToTry) {
       try {
         const url = `${ENDPOINTS.geminiBaseUrl}/${model}:generateContent?key=${GEMINI_API_KEY}`;
         const response = await fetchWithTimeout(
@@ -135,7 +147,7 @@ export const GeminiGateway = {
               ],
             }),
           },
-          12000
+          16000
         );
 
         const data = await response.json();

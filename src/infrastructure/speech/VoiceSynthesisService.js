@@ -83,7 +83,7 @@ export class VoiceSynthesisService {
     }
 
     // 2. Fallback secundário: Voz Neural Masculina Charon (Gemini TTS)
-    const ttsModel = 'gemini-2.5-flash-preview-tts';
+    const ttsModel = 'gemini-3.8-flash-lite-tts';
     if (GEMINI_API_KEY && !GeminiGateway.isModelExhausted(ttsModel)) {
       try {
         const url = `${ENDPOINTS.geminiBaseUrl}/${ttsModel}:generateContent?key=${GEMINI_API_KEY}`;

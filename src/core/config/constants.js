@@ -14,9 +14,13 @@ export const INITIAL_EXHAUSTED_MODELS = [];
 /**
  * Detecta dinamicamente o IP/Host do servidor Metro em tempo de execução
  * para que os endpoints locais (/alfred-tts e /alfred-emails na porta 8081)
- * funcionem independentemente do endereço IP atribuído via DHCP na rede Wi-Fi.
+ * funcionem tanto em Bridgeless (New Architecture) quanto no modo clássico.
  */
 export function getMetroServerBaseUrl() {
+  if (process.env.EXPO_PUBLIC_PACKAGER_HOSTNAME) {
+    return `http://${process.env.EXPO_PUBLIC_PACKAGER_HOSTNAME.trim()}:8081`;
+  }
+
   try {
     const scriptURL = NativeModules?.SourceCode?.scriptURL;
     if (scriptURL && typeof scriptURL === 'string') {
@@ -27,9 +31,16 @@ export function getMetroServerBaseUrl() {
         return `http://${host}:${port}`;
       }
     }
-  } catch {
-    // Fallback silencioso
-  }
+  } catch {}
+
+  try {
+    const stack = new Error().stack || '';
+    const stackMatch = stack.match(/https?:\/\/([0-9]+\.[0-9]+\.[0-9]+\.[0-9]+):(\d+)/);
+    if (stackMatch && stackMatch[1]) {
+      return `http://${stackMatch[1]}:${stackMatch[2] || '8081'}`;
+    }
+  } catch {}
+
   const fallbackHost =
     process.env.REACT_NATIVE_PACKAGER_HOSTNAME ||
     (Platform.OS === 'android' ? '10.0.2.2' : 'localhost');
@@ -65,23 +76,25 @@ export const ENDPOINTS = {
 };
 
 export const MODELOS_AUDIO_GEMINI = [
-  'gemini-2.5-flash-lite',
-  'gemini-2.5-flash',
-  'gemini-2.0-flash',
-  'gemini-2.0-flash-lite',
+  'gemini-3.5-flash-lite',
+  'gemini-3.1-flash-lite',
+  'gemini-3.8-flash',
+  'gemini-3.5-transcribe',
+  'gemini-4-argon',
 ];
 
 export const MODELOS_TEXTO_GEMINI = [
-  'gemma-4-31b-it',
+  'gemini-3.5-flash-lite',
+  'gemini-3.1-flash-lite',
+  'gemini-3.8-flash',
+  'gemini-4-argon',
   'gemma-4-26b-a4b-it',
-  'gemini-2.5-flash-lite',
-  'gemini-2.5-flash',
-  'gemini-2.0-flash',
+  'gemma-4-31b-it',
 ];
 
 export const MODELOS_TTS_GEMINI = [
-  'gemini-2.5-flash-preview-tts',
-  'gemini-2.5-pro-preview-tts',
+  'gemini-3.8-flash-lite-tts',
+  'gemini-3.8-flash-tts',
 ];
 
 export const VOICE_CONFIG = {

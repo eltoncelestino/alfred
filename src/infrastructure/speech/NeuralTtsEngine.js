@@ -1,5 +1,6 @@
 import * as FileSystem from 'expo-file-system/legacy';
 import { ENDPOINTS, VOICE_CONFIG } from '../../core/config/constants';
+import { fetchWithTimeout } from '../http/httpClient';
 
 const TRUSTED_CLIENT_TOKEN = '6A5AA1D4EAFF4E9FB37E23D68491D6F4';
 const CHROMIUM_FULL_VERSION = '143.0.3650.75';
@@ -289,17 +290,17 @@ function synthesizeDirectOnDevice(text) {
  * Engine de síntese de voz neural masculina única (pt-BR-AntonioNeural).
  */
 export async function sintetizarVozMasculinaUnica(texto, messageId) {
-  // 1. Tenta via servidor Metro Bundler na porta 8081 (IP detectado dinamicamente)
+  // 1. Tenta via servidor Metro Bundler na porta 8081 (IP detectado via EXPO_PUBLIC_PACKAGER_HOSTNAME / stack)
   try {
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 5000);
-    const resp = await fetch(ENDPOINTS.metroTts, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ text: texto }),
-      signal: controller.signal,
-    });
-    clearTimeout(timer);
+    const resp = await fetchWithTimeout(
+      ENDPOINTS.metroTts,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: texto }),
+      },
+      7000
+    );
     const data = await resp.json();
     if (data?.ok && data?.audioBase64) {
       const fileUri = `${FileSystem.cacheDirectory}alfred_voz_${messageId}.mp3`;
@@ -320,10 +321,7 @@ export async function sintetizarVozMasculinaUnica(texto, messageId) {
       });
       return fileUri;
     }
-  } catch (err) {
-    console.warn('[NeuralTtsEngine] Falha no TTS neural direto:', err.message);
-  }
+  } catch (_) {}
 
   return null;
 }
-
