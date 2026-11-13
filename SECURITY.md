@@ -25,3 +25,4 @@ Caso você identifique qualquer vulnerabilidade de segurança neste projeto:
 1. **Não abra uma Issue pública** contendo detalhes de exploração ou credenciais.
 2. Envie um relato detalhado diretamente ao autor (**Elton Celestino**) através do perfil oficial no GitHub: [@eltoncelestino](https://github.com/eltoncelestino).
 3. Inclua os passos para reprodução, o componente afetado e o impacto estimado.
+

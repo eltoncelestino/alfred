@@ -1,15 +1,43 @@
-import React, { memo } from 'react';
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import React, { memo, useState } from 'react';
+import { Linking, Platform, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { colors, layout, radii, spacing, typography } from '../../../core/theme/tokens';
 
+function copyTextToClipboard(text) {
+  if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
+    navigator.clipboard.writeText(text).catch(() => {});
+    return true;
+  }
+  return false;
+}
+
 function MessageItemComponent({ item, onReplayAudio, isSpeaking }) {
+  const [copied, setCopied] = useState(false);
+  const [copiedDiag, setCopiedDiag] = useState(false);
   const isUser = item.autor === 'Você';
+
+  const handleCopyMessage = () => {
+    const fullText = item.diagnosticError
+      ? `${item.texto}\n\n[Diagnóstico]: ${item.diagnosticError}`
+      : item.texto;
+    copyTextToClipboard(fullText);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1800);
+  };
+
+  const handleCopyDiagnostic = () => {
+    if (!item.diagnosticError) return;
+    copyTextToClipboard(item.diagnosticError);
+    setCopiedDiag(true);
+    setTimeout(() => setCopiedDiag(false), 1800);
+  };
 
   if (isUser) {
     return (
       <View style={styles.userRow}>
         <View style={styles.userBubble}>
-          <Text style={styles.userText}>{item.texto}</Text>
+          <Text selectable style={styles.userText}>
+            {item.texto}
+          </Text>
           {item.timestamp ? <Text style={styles.userTimestamp}>{item.timestamp}</Text> : null}
         </View>
       </View>
@@ -30,18 +58,82 @@ function MessageItemComponent({ item, onReplayAudio, isSpeaking }) {
             ) : null}
           </View>
 
-          <TouchableOpacity
-            style={styles.replayButton}
-            onPress={() => onReplayAudio?.(item.texto)}
-            activeOpacity={0.7}
-            accessibilityRole="button"
-            accessibilityLabel="Ouvir resposta novamente"
-          >
-            <Text style={styles.replayButtonText}>{isSpeaking ? 'Ouvindo' : 'Ouvir'}</Text>
-          </TouchableOpacity>
+          <View style={styles.actionsRow}>
+            <TouchableOpacity
+              style={styles.replayButton}
+              onPress={handleCopyMessage}
+              activeOpacity={0.7}
+              accessibilityRole="button"
+              accessibilityLabel="Copiar mensagem"
+            >
+              <Text style={styles.replayButtonText}>
+                {copied ? 'Copiado!' : 'Copiar'}
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.replayButton}
+              onPress={() => onReplayAudio?.(item.texto)}
+              activeOpacity={0.7}
+              accessibilityRole="button"
+              accessibilityLabel="Ouvir resposta novamente"
+            >
+              <Text style={styles.replayButtonText}>{isSpeaking ? 'Ouvindo' : 'Ouvir'}</Text>
+            </TouchableOpacity>
+          </View>
         </View>
 
-        <Text style={styles.assistantText}>{item.texto}</Text>
+        <Text selectable style={styles.assistantText}>
+          {item.texto}
+        </Text>
+
+        {item.youtubeAction?.url ? (
+          <TouchableOpacity
+            style={styles.youtubeCard}
+            onPress={() => {
+              if (Platform.OS === 'web' && typeof window !== 'undefined') {
+                window.open(item.youtubeAction.url, '_blank', 'noopener,noreferrer');
+              } else {
+                Linking.openURL(item.youtubeAction.url);
+              }
+            }}
+            activeOpacity={0.75}
+            accessibilityRole="button"
+            accessibilityLabel={`Abrir ${item.youtubeAction.title} no YouTube`}
+          >
+            <View style={styles.youtubeBadge}>
+              <Text style={styles.youtubeBadgeText}>▶</Text>
+            </View>
+            <View style={styles.youtubeInfo}>
+              <Text style={styles.youtubeTitle} numberOfLines={1}>
+                {item.youtubeAction.title}
+              </Text>
+              <Text style={styles.youtubeMeta} numberOfLines={1}>
+                {item.youtubeAction.channel} · Toque para abrir no YouTube
+              </Text>
+            </View>
+          </TouchableOpacity>
+        ) : null}
+
+        {item.diagnosticError ? (
+          <View style={styles.diagnosticBox}>
+            <View style={styles.diagnosticHeader}>
+              <Text style={styles.diagnosticTitle}>DETALHE TÉCNICO DO ERRO</Text>
+              <TouchableOpacity
+                style={styles.diagnosticCopyBtn}
+                onPress={handleCopyDiagnostic}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.diagnosticCopyText}>
+                  {copiedDiag ? 'Copiado!' : 'Copiar erro'}
+                </Text>
+              </TouchableOpacity>
+            </View>
+            <Text selectable style={styles.diagnosticText}>
+              {item.diagnosticError}
+            </Text>
+          </View>
+        ) : null}
       </View>
     </View>
   );
@@ -126,6 +218,11 @@ const styles = StyleSheet.create({
     ...typography.caption,
     color: colors.text.muted,
   },
+  actionsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+  },
   replayButton: {
     paddingHorizontal: spacing.sm + 2,
     paddingVertical: spacing.xs,
@@ -142,6 +239,82 @@ const styles = StyleSheet.create({
   assistantText: {
     ...typography.body,
     color: colors.text.primary,
+  },
+  diagnosticBox: {
+    marginTop: spacing.md,
+    padding: spacing.md,
+    borderRadius: radii.sm,
+    backgroundColor: colors.bg.primary,
+    borderWidth: 1,
+    borderColor: colors.status.dangerBorder,
+  },
+  diagnosticHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: spacing.xs,
+  },
+  diagnosticTitle: {
+    ...typography.labelCaps,
+    color: colors.status.danger,
+  },
+  diagnosticCopyBtn: {
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 2,
+    borderRadius: radii.xs,
+    backgroundColor: colors.status.dangerBg,
+    borderWidth: 1,
+    borderColor: colors.status.dangerBorder,
+  },
+  diagnosticCopyText: {
+    ...typography.caption,
+    color: colors.status.danger,
+    fontWeight: '600',
+  },
+  diagnosticText: {
+    ...typography.caption,
+    color: colors.text.secondary,
+    fontFamily: 'monospace',
+  },
+  youtubeCard: {
+    marginTop: spacing.md,
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: spacing.md,
+    borderRadius: radii.sm,
+    backgroundColor: colors.bg.tertiary,
+    borderWidth: 1,
+    borderColor: colors.border.accent,
+    gap: spacing.sm,
+  },
+  youtubeBadge: {
+    width: 32,
+    height: 32,
+    borderRadius: radii.sm,
+    backgroundColor: colors.status.dangerBg,
+    borderWidth: 1,
+    borderColor: colors.status.dangerBorder,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  youtubeBadgeText: {
+    color: colors.status.danger,
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  youtubeInfo: {
+    flex: 1,
+  },
+  youtubeTitle: {
+    ...typography.body,
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.text.primary,
+  },
+  youtubeMeta: {
+    ...typography.caption,
+    color: colors.accent.secondary,
+    marginTop: 2,
   },
 });
 

@@ -64,14 +64,22 @@ function HeaderBarComponent({
               <Text style={styles.monogramText}>A</Text>
             </View>
             <View style={styles.brandTextCol}>
-              <Text style={styles.title} accessibilityRole="header">
+              <Text
+                style={styles.title}
+                numberOfLines={1}
+                accessibilityRole="header"
+              >
                 Alfred
               </Text>
               <View style={styles.statusRow}>
                 <View
                   style={[styles.statusDot, { backgroundColor: statusDotColor }]}
                 />
-                <Text style={styles.statusText} numberOfLines={1}>
+                <Text
+                  style={styles.statusText}
+                  numberOfLines={1}
+                  ellipsizeMode="tail"
+                >
                   {statusLabel}
                 </Text>
               </View>
@@ -80,7 +88,11 @@ function HeaderBarComponent({
 
           {weatherBadge ? (
             <View style={styles.weatherPill}>
-              <Text style={styles.weatherText} numberOfLines={1}>
+              <Text
+                style={styles.weatherText}
+                numberOfLines={1}
+                ellipsizeMode="tail"
+              >
                 {weatherBadge}
               </Text>
             </View>
@@ -230,15 +242,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     marginBottom: spacing.sm,
+    gap: spacing.sm,
   },
   brandRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    flex: 1,
-    paddingRight: spacing.md,
+    flexShrink: 0,
+    minWidth: 115,
   },
   brandTextCol: {
-    flex: 1,
+    flexShrink: 0,
   },
   monogram: {
     width: 36,
@@ -292,13 +305,14 @@ const styles = StyleSheet.create({
     fontSize: 11.5,
   },
   weatherPill: {
+    flexShrink: 1,
+    maxWidth: '58%',
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: radii.full,
     backgroundColor: colors.surface.card,
     borderWidth: 1,
     borderColor: colors.border.default,
-    marginLeft: spacing.sm,
   },
   weatherText: {
     ...typography.caption,

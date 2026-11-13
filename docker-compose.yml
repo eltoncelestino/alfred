@@ -1,0 +1,16 @@
+services:
+  alfred:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: alfred-assistant
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      # Lida apenas pelo servidor backend (server/index.js) — nunca exposta no dist/
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - EXPO_PUBLIC_DEFAULT_USER_EMAIL=${EXPO_PUBLIC_DEFAULT_USER_EMAIL:-}
+    restart: unless-stopped
+

@@ -10,6 +10,7 @@ import { GeminiGateway } from '../../../infrastructure/ai/GeminiGateway';
 import { EmailService } from '../../../infrastructure/integrations/EmailService';
 import { NewsService } from '../../../infrastructure/integrations/NewsService';
 import { WeatherService } from '../../../infrastructure/integrations/WeatherService';
+import { YouTubeService } from '../../../infrastructure/integrations/YouTubeService';
 import { AgendaRepository } from '../../../infrastructure/repositories/AgendaRepository';
 import { EmailConfigRepository } from '../../../infrastructure/repositories/EmailConfigRepository';
 import { MorningRoutineStateRepository } from '../../../infrastructure/repositories/MorningRoutineStateRepository';
@@ -250,7 +251,34 @@ export function useAlfredAssistant({ onAfterAssistantCycle }) {
         const promptForGemini = `${contextBlock}\n\nSOLICITAÇÃO DO USUÁRIO: ${trimmedCommand}`;
 
         const rawAiResponse = await GeminiGateway.generateAssistantReply(promptForGemini);
-        const { spokenText, savedEvents } = processAssistantDirectives(rawAiResponse);
+        const diagnosticErr = GeminiGateway.getLastDiagnosticError();
+        const {
+          spokenText,
+          savedEvents,
+          removedEvents,
+          updatedEvents,
+          youtubeQueries,
+        } = processAssistantDirectives(rawAiResponse);
+
+        if (removedEvents.length > 0) {
+          for (const evt of removedEvents) {
+            const { allEvents } = await AgendaRepository.removeByCriteria(evt);
+            setAgendaEvents(allEvents);
+          }
+        }
+
+        if (updatedEvents.length > 0) {
+          for (const evt of updatedEvents) {
+            const { updatedCount, allEvents } =
+              await AgendaRepository.updateByCriteria(evt);
+            setAgendaEvents(allEvents);
+            // Se não encontrou evento para atualizar, cria o novo evento normalmente
+            if (updatedCount === 0 && evt.title) {
+              const added = await AgendaRepository.addEvent(evt);
+              setAgendaEvents(added.allEvents);
+            }
+          }
+        }
 
         if (savedEvents.length > 0) {
           for (const evt of savedEvents) {
@@ -259,16 +287,29 @@ export function useAlfredAssistant({ onAfterAssistantCycle }) {
           }
         }
 
+        let youtubeAction = null;
+        if (youtubeQueries.length > 0) {
+          youtubeAction = await YouTubeService.searchAndOpen(
+            youtubeQueries[0].query
+          );
+        }
+
         const finalReply =
           spokenText || 'Certo, tudo anotado. Precisa de mais alguma coisa?';
 
         setMessages((prev) => [
           ...prev,
-          MessageEntity.createAssistantMessage(finalReply),
+          MessageEntity.createAssistantMessage(
+            finalReply,
+            diagnosticErr,
+            youtubeAction
+          ),
         ]);
         setIsLoading(false);
 
-        await speakText(finalReply);
+        await speakText(finalReply, () => {
+          onAfterAssistantCycle?.({ armFollowUp: true });
+        });
       } catch (error) {
         console.error('Erro ao processar comando:', error);
         const isQuota = AppError.isQuotaExceeded(error);
@@ -276,15 +317,21 @@ export function useAlfredAssistant({ onAfterAssistantCycle }) {
           ? 'O limite gratuito de requisições da chave Gemini foi atingido neste minuto. Aguarde trinta segundos e tente novamente.'
           : 'Perdão, encontrei uma instabilidade momentânea ao consultar meus sistemas. Pode repetir?';
 
+        const diagDetail =
+          GeminiGateway.getLastDiagnosticError() ||
+          error?.message ||
+          String(error);
+
         setMessages((prev) => [
           ...prev,
-          MessageEntity.createAssistantMessage(friendlyMessage),
+          MessageEntity.createAssistantMessage(friendlyMessage, diagDetail),
         ]);
         setIsLoading(false);
-        await speakText(friendlyMessage);
+        await speakText(friendlyMessage, () => {
+          onAfterAssistantCycle?.({ armFollowUp: true });
+        });
       } finally {
         isBusyRef.current = false;
-        onAfterAssistantCycle?.();
       }
     },
     [

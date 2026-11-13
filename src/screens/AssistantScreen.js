@@ -21,8 +21,12 @@ import { useVoiceCommandSystem } from '../features/voice/hooks/useVoiceCommandSy
 export function AssistantScreen() {
   const flatListRef = useRef(null);
   const restartHandsFreeRef = useRef(null);
+  const armFollowUpRef = useRef(null);
 
-  const handleAfterAssistantCycle = useCallback(() => {
+  const handleAfterAssistantCycle = useCallback((options = {}) => {
+    if (options?.armFollowUp) {
+      armFollowUpRef.current?.();
+    }
     restartHandsFreeRef.current?.();
   }, []);
 
@@ -64,6 +68,7 @@ export function AssistantScreen() {
     handsFreeEnabled,
     isHandsFreeListening,
     wakeWordArmed,
+    armFollowUpWindow,
     startHandsFreeMonitoring,
     toggleHandsFree,
     startManualRecording,
@@ -81,6 +86,7 @@ export function AssistantScreen() {
   });
 
   restartHandsFreeRef.current = startHandsFreeMonitoring;
+  armFollowUpRef.current = armFollowUpWindow;
 
   const isBusy = isLoading || isRecording;
 

@@ -30,39 +30,80 @@ const WMO_CODES = {
 export const WeatherService = {
   async fetchCurrentWeather() {
     try {
-      const { status } = await Location.requestForegroundPermissionsAsync();
-      if (status !== 'granted') {
-        return null;
+      let lat = null;
+      let lon = null;
+      let fallbackCity = null;
+
+      // 1. Tenta obter coordenadas via GPS com timeout de 3.5s (evita travar em PCs sem GPS no navegador)
+      try {
+        const gpsResult = await Promise.race([
+          (async () => {
+            const { status } = await Location.requestForegroundPermissionsAsync();
+            if (status !== 'granted') return null;
+            return await Location.getCurrentPositionAsync({
+              accuracy: Location.Accuracy.Balanced,
+            });
+          })(),
+          new Promise((resolve) => setTimeout(() => resolve(null), 3500)),
+        ]);
+
+        if (gpsResult?.coords) {
+          lat = gpsResult.coords.latitude;
+          lon = gpsResult.coords.longitude;
+        }
+      } catch (_) {}
+
+      // 2. Fallback automático por IP (BigDataCloud sem parâmetros retorna lat/lon/city pelo IP)
+      if (lat == null || lon == null) {
+        try {
+          const ipGeoResp = await fetchWithTimeout(
+            `${ENDPOINTS.reverseGeocodeUrl}?localityLanguage=pt`,
+            {},
+            3500
+          );
+          if (ipGeoResp.ok) {
+            const ipGeo = await ipGeoResp.json();
+            if (typeof ipGeo.latitude === 'number' && typeof ipGeo.longitude === 'number') {
+              lat = ipGeo.latitude;
+              lon = ipGeo.longitude;
+              fallbackCity =
+                ipGeo.city ||
+                ipGeo.locality ||
+                ipGeo.principalSubdivision ||
+                null;
+            }
+          }
+        } catch (_) {}
       }
 
-      const location = await Location.getCurrentPositionAsync({
-        accuracy: Location.Accuracy.Balanced,
-      });
-      const lat = location.coords.latitude;
-      const lon = location.coords.longitude;
+      if (lat == null || lon == null) {
+        return null;
+      }
 
       const [climaResp, geoResp] = await Promise.all([
         fetchWithTimeout(
           `${ENDPOINTS.openMeteoUrl}?latitude=${lat}&longitude=${lon}&current=temperature_2m,apparent_temperature,relative_humidity_2m,precipitation,weather_code,wind_speed_10m&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max&timezone=auto`,
           {},
-          5500
+          9000
         ),
-        fetchWithTimeout(
-          `${ENDPOINTS.reverseGeocodeUrl}?latitude=${lat}&longitude=${lon}&localityLanguage=pt`,
-          {},
-          4000
-        ).catch(() => null),
+        fallbackCity
+          ? Promise.resolve(null)
+          : fetchWithTimeout(
+              `${ENDPOINTS.reverseGeocodeUrl}?latitude=${lat}&longitude=${lon}&localityLanguage=pt`,
+              {},
+              4000
+            ).catch(() => null),
       ]);
 
       const dadosClima = await climaResp.json();
-      let cidade = 'Localização atual';
+      let cidade = fallbackCity || 'Localização atual';
       if (geoResp && geoResp.ok) {
         const dadosGeo = await geoResp.json();
         cidade =
           dadosGeo.city ||
           dadosGeo.locality ||
           dadosGeo.principalSubdivision ||
-          'Localização atual';
+          cidade;
       }
 
       const atual = dadosClima.current || {};

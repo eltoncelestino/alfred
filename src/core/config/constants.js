@@ -17,6 +17,14 @@ export const INITIAL_EXHAUSTED_MODELS = [];
  * funcionem tanto em Bridgeless (New Architecture) quanto no modo clássico.
  */
 export function getMetroServerBaseUrl() {
+  if (process.env.EXPO_PUBLIC_API_URL) {
+    return process.env.EXPO_PUBLIC_API_URL.trim().replace(/\/+$/, '');
+  }
+
+  if (Platform.OS === 'web' && typeof window !== 'undefined' && window.location?.origin) {
+    return window.location.origin;
+  }
+
   if (process.env.EXPO_PUBLIC_PACKAGER_HOSTNAME) {
     return `http://${process.env.EXPO_PUBLIC_PACKAGER_HOSTNAME.trim()}:8081`;
   }
@@ -60,6 +68,15 @@ export const ENDPOINTS = {
   get metroEmails() {
     return `${getMetroServerBaseUrl()}/alfred-emails`;
   },
+  get metroGemini() {
+    return `${getMetroServerBaseUrl()}/alfred-gemini`;
+  },
+  get metroNews() {
+    return `${getMetroServerBaseUrl()}/alfred-news`;
+  },
+  get metroYoutube() {
+    return `${getMetroServerBaseUrl()}/alfred-youtube`;
+  },
   openMeteoForecast: 'https://api.open-meteo.com/v1/forecast',
   openMeteoUrl: 'https://api.open-meteo.com/v1/forecast',
   reverseGeocode: 'https://api.bigdatacloud.net/data/reverse-geocode-client',
@@ -76,25 +93,25 @@ export const ENDPOINTS = {
 };
 
 export const MODELOS_AUDIO_GEMINI = [
+  'gemini-3.5-flash',
   'gemini-3.5-flash-lite',
-  'gemini-3.1-flash-lite',
   'gemini-3.8-flash',
-  'gemini-3.5-transcribe',
   'gemini-4-argon',
 ];
 
 export const MODELOS_TEXTO_GEMINI = [
+  'gemini-3.5-flash',
   'gemini-3.5-flash-lite',
-  'gemini-3.1-flash-lite',
   'gemini-3.8-flash',
-  'gemini-4-argon',
   'gemma-4-26b-a4b-it',
   'gemma-4-31b-it',
+  'gemini-4-argon',
 ];
 
 export const MODELOS_TTS_GEMINI = [
   'gemini-3.8-flash-lite-tts',
   'gemini-3.8-flash-tts',
+  'gemini-2.5-flash-preview-tts',
 ];
 
 export const VOICE_CONFIG = {
@@ -108,13 +125,14 @@ export const VOICE_CONFIG = {
 };
 
 export const VAD_CONFIG = {
-  standbySpeechDbThreshold: -38,
-  armedSpeechDbThreshold: -42,
-  minSpeechDurationMs: 320,
-  silenceDurationToCommitMs: 1150,
-  maxSingleUtteranceMs: 8500,
+  standbySpeechDbThreshold: -42,
+  armedSpeechDbThreshold: -46,
+  minSpeechDurationMs: 260,
+  silenceDurationToCommitMs: 1450,
+  armedSilenceDurationToCommitMs: 1850,
+  maxSingleUtteranceMs: 12000,
   sessionRecycleMs: 20000,
-  wakeWordWindowMs: 25000,
+  wakeWordWindowMs: 30000,
   pollingIntervalMs: 180,
 };
 
@@ -151,5 +169,10 @@ export const QUICK_ACTIONS = [
     label: 'Clima de hoje',
     prompt:
       'Alfred, como está o clima agora na minha cidade e preciso levar guarda-chuva hoje?',
+  },
+  {
+    id: 'youtube',
+    label: 'Abrir YouTube',
+    prompt: 'Alfred, toque música ambiente relaxante no YouTube.',
   },
 ];

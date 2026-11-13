@@ -1,0 +1,26 @@
+# Dependências e artefatos locais
+node_modules
+.expo
+dist
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Variáveis de ambiente e segredos (nunca incluir na imagem Docker)
+.env
+.env.local
+.env.*.local
+server/email-credentials.json
+*.pem
+*.key
+
+# Controle de versão, documentação e testes
+.git
+.gitignore
+docs
+tests
+README.md
+SECURITY.md
+CONTRIBUTING.md
+CHANGELOG.md
+

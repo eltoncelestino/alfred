@@ -36,3 +36,4 @@ Utilize mensagens semânticas:
 - `refactor:` para melhorias arquiteturais sem mudança de comportamento externo.
 - `docs:` para alterações exclusivas na documentação.
 - `test:` para adição ou ajuste de testes automatizados.
+

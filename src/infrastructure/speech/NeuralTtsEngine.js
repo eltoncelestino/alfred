@@ -299,10 +299,13 @@ export async function sintetizarVozMasculinaUnica(texto, messageId) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ text: texto }),
       },
-      7000
+      15000
     );
     const data = await resp.json();
     if (data?.ok && data?.audioBase64) {
+      if (!FileSystem.cacheDirectory) {
+        return `data:audio/mp3;base64,${data.audioBase64}`;
+      }
       const fileUri = `${FileSystem.cacheDirectory}alfred_voz_${messageId}.mp3`;
       await FileSystem.writeAsStringAsync(fileUri, data.audioBase64, {
         encoding: FileSystem.EncodingType.Base64,
@@ -315,6 +318,9 @@ export async function sintetizarVozMasculinaUnica(texto, messageId) {
   try {
     const base64Mp3 = await synthesizeDirectOnDevice(texto);
     if (base64Mp3) {
+      if (!FileSystem.cacheDirectory) {
+        return `data:audio/mp3;base64,${base64Mp3}`;
+      }
       const fileUri = `${FileSystem.cacheDirectory}alfred_voz_${messageId}.mp3`;
       await FileSystem.writeAsStringAsync(fileUri, base64Mp3, {
         encoding: FileSystem.EncodingType.Base64,

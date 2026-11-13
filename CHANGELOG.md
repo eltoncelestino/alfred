@@ -13,3 +13,4 @@ Todas as mudanças relevantes deste projeto são documentadas neste arquivo.
 - **Integração Multi-Estratégia de E-mail (`Strategy Pattern`):** Leitura real de remetente e assunto via Gmail IMAP Bridge (`server/imap-helper.js`), Gmail REST API (OAuth 2.0) ou Webhook JSON.
 - **Meteorologia e Notícias em Tempo Real:** Integração com GPS (`expo-location`), Open-Meteo, BigDataCloud Reverse Geocoding e feeds RSS do Google News Brasil / G1.
 - **Suíte de Testes Automatizados e Documentação Completa:** Testes de casos de uso e validação de árvore sintática (`npm test`), recursos visuais em `docs/images/` e auditoria de segurança.
+

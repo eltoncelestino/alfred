@@ -1,5 +1,6 @@
 const tls = require('tls');
 const crypto = require('crypto');
+const { spawn } = require('child_process');
 
 const TRUSTED_CLIENT_TOKEN = '6A5AA1D4EAFF4E9FB37E23D68491D6F4';
 const CHROMIUM_FULL_VERSION = '143.0.3650.75';
@@ -8,6 +9,69 @@ const WIN_EPOCH = 11644473600;
 
 // Voz masculina neural brasileira fixa e 100% consistente
 const DEFAULT_MALE_VOICE = 'pt-BR-AntonioNeural';
+
+function synthesizeViaPythonEdgeTts(text, voice = DEFAULT_MALE_VOICE) {
+  return new Promise((resolve, reject) => {
+    const cleanText = String(text || '').trim();
+    if (!cleanText) {
+      reject(new Error('Texto vazio para síntese'));
+      return;
+    }
+
+    const args = [
+      '-m',
+      'edge_tts',
+      '--voice',
+      voice,
+      '--pitch=-2Hz',
+      '--rate=+2%',
+      '--text',
+      cleanText,
+      '--write-media',
+      '-',
+    ];
+
+    const pythonBin = process.platform === 'win32' ? 'python' : 'python3';
+    const proc = spawn(pythonBin, args, { windowsHide: true });
+    const chunks = [];
+    const errChunks = [];
+    let settled = false;
+
+    const timer = setTimeout(() => {
+      if (!settled) {
+        settled = true;
+        try {
+          proc.kill();
+        } catch (_) {}
+        reject(new Error('Timeout no edge-tts Python'));
+      }
+    }, 15000);
+
+    proc.stdout.on('data', (chunk) => chunks.push(chunk));
+    proc.stderr.on('data', (chunk) => errChunks.push(chunk));
+
+    proc.on('error', (err) => {
+      if (!settled) {
+        settled = true;
+        clearTimeout(timer);
+        reject(err);
+      }
+    });
+
+    proc.on('close', (code) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      const audio = Buffer.concat(chunks);
+      if (code === 0 && audio.length > 0) {
+        resolve(audio);
+      } else {
+        const stderrText = Buffer.concat(errChunks).toString('utf8').trim();
+        reject(new Error(stderrText || `edge-tts saiu com código ${code}`));
+      }
+    });
+  });
+}
 
 function generateSecMsGec() {
   let ticks = Math.floor(Date.now() / 1000) + WIN_EPOCH;
@@ -56,7 +120,7 @@ function createWsFrame(payload, opcode = 0x01) {
   return Buffer.concat([header, mask, masked]);
 }
 
-function synthesizeMaleNeuralPtBr(text, voice = DEFAULT_MALE_VOICE) {
+function synthesizeViaNodeWebSocket(text, voice = DEFAULT_MALE_VOICE) {
   return new Promise((resolve, reject) => {
     const connId = crypto.randomUUID().replace(/-/g, '');
     const requestId = crypto.randomUUID().replace(/-/g, '');
@@ -228,6 +292,15 @@ function synthesizeMaleNeuralPtBr(text, voice = DEFAULT_MALE_VOICE) {
       }
     });
   });
+}
+
+async function synthesizeMaleNeuralPtBr(text, voice = DEFAULT_MALE_VOICE) {
+  try {
+    return await synthesizeViaPythonEdgeTts(text, voice);
+  } catch (pyErr) {
+    console.warn('[edge-tts] Fallback para WebSocket Node:', pyErr.message);
+    return synthesizeViaNodeWebSocket(text, voice);
+  }
 }
 
 module.exports = { synthesizeMaleNeuralPtBr, DEFAULT_MALE_VOICE };

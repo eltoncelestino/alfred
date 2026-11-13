@@ -293,4 +293,31 @@ runTest('Diretivas de Voz: Extrai tag AGENDA_SAVE e remove markdown da fala', ()
   assert.equal(result.savedEvents[0].time, '12:30');
 });
 
+runTest('Diretivas de Voz e YouTube: Extrai tag YOUTUBE_PLAY e reconhece intenção', () => {
+  assert.equal(detectDirectCommandIntent('Toque jazz relaxante no YouTube'), true);
+  const raw =
+    'Abrindo jazz relaxante no YouTube agora, senhor. [[YOUTUBE_PLAY:{"query":"jazz relaxante"}]]';
+  const result = processAssistantDirectives(raw);
+  assert.equal(result.spokenText, 'Abrindo jazz relaxante no YouTube agora, senhor.');
+  assert.equal(result.youtubeQueries.length, 1);
+  assert.equal(result.youtubeQueries[0].query, 'jazz relaxante');
+});
+
+runTest('Diretivas de Voz e Agenda: Extrai tags AGENDA_REMOVE e AGENDA_UPDATE', () => {
+  const rawRemove =
+    'Pronto, removi o passeio matinal das dezoito horas. [[AGENDA_REMOVE:{"title":"Passeio matinal","date":"2026-11-13","time":"18:00"}]]';
+  const resRemove = processAssistantDirectives(rawRemove);
+  assert.equal(resRemove.spokenText, 'Pronto, removi o passeio matinal das dezoito horas.');
+  assert.equal(resRemove.removedEvents.length, 1);
+  assert.equal(resRemove.removedEvents[0].title, 'Passeio matinal');
+
+  const rawUpdate =
+    'Alterado para Cinema às dezoito horas. [[AGENDA_UPDATE:{"matchTitle":"Passeio matinal","matchDate":"2026-11-13","matchTime":"18:00","title":"Cinema","date":"2026-11-13","time":"18:00","durationMinutes":120}]]';
+  const resUpdate = processAssistantDirectives(rawUpdate);
+  assert.equal(resUpdate.spokenText, 'Alterado para Cinema às dezoito horas.');
+  assert.equal(resUpdate.updatedEvents.length, 1);
+  assert.equal(resUpdate.updatedEvents[0].matchTitle, 'Passeio matinal');
+  assert.equal(resUpdate.updatedEvents[0].title, 'Cinema');
+});
+
 console.log(`\nResultado final: ${passed} suítes aprovadas com 0 falhas.`);

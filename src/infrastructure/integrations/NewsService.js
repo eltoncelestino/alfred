@@ -1,3 +1,4 @@
+import { Platform } from 'react-native';
 import { ENDPOINTS } from '../../core/config/constants';
 import { decodeXmlEntities } from '../../utils/formatters';
 import { fetchWithTimeout } from '../http/httpClient';
@@ -7,7 +8,12 @@ import { fetchWithTimeout } from '../http/httpClient';
  */
 export const NewsService = {
   async fetchTopHeadlines() {
-    for (const url of ENDPOINTS.newsRssFeeds) {
+    const candidateUrls =
+      Platform.OS === 'web'
+        ? [ENDPOINTS.metroNews, ...ENDPOINTS.newsRssFeeds]
+        : [...ENDPOINTS.newsRssFeeds, ENDPOINTS.metroNews];
+
+    for (const url of candidateUrls) {
       try {
         const response = await fetchWithTimeout(url, {}, 5500);
         const xml = await response.text();

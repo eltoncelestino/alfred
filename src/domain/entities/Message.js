@@ -4,12 +4,21 @@ import { formatShortTime } from '../../utils/formatters';
  * Entidade de domínio e Factory Method para mensagens do diálogo.
  */
 export class MessageEntity {
-  static create({ id, autor, texto, timestamp }) {
+  static create({
+    id,
+    autor,
+    texto,
+    timestamp,
+    diagnosticError = null,
+    youtubeAction = null,
+  }) {
     return {
       id: id || `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
       autor,
       texto: (texto || '').trim(),
       timestamp: timestamp || formatShortTime(),
+      diagnosticError,
+      youtubeAction,
     };
   }
 
@@ -20,10 +29,16 @@ export class MessageEntity {
     });
   }
 
-  static createAssistantMessage(texto) {
+  static createAssistantMessage(
+    texto,
+    diagnosticError = null,
+    youtubeAction = null
+  ) {
     return MessageEntity.create({
       autor: 'Alfred',
       texto,
+      diagnosticError,
+      youtubeAction,
     });
   }
 

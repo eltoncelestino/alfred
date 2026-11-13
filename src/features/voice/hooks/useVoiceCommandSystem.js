@@ -47,10 +47,24 @@ export function useVoiceCommandSystem({
   const handsFreeEnabledRef = useRef(true);
   const wakeWordArmedRef = useRef(false);
   const isManualRecordingRef = useRef(false);
+  const isStartingMonitorRef = useRef(false);
   const vadIntervalRef = useRef(null);
+  const webRecognitionRef = useRef(null);
   const timerIntervalRef = useRef(null);
   const wakeWordWindowTimeoutRef = useRef(null);
   const startHandsFreeLoopRef = useRef(null);
+
+  const stopWebRecognition = useCallback(() => {
+    if (webRecognitionRef.current) {
+      try {
+        webRecognitionRef.current.onend = null;
+        webRecognitionRef.current.onresult = null;
+        webRecognitionRef.current.onerror = null;
+        webRecognitionRef.current.stop();
+      } catch (_) {}
+      webRecognitionRef.current = null;
+    }
+  }, []);
 
   const setWakeWordArmedState = useCallback((armed) => {
     wakeWordArmedRef.current = armed;
@@ -91,6 +105,76 @@ export function useVoiceCommandSystem({
   }, [isRecording]);
 
   /**
+   * Roteia uma transcrição de voz já reconhecida (Wake-Word em standby, janela armada ou comando manual).
+   */
+  const handleTranscribedText = useCallback(
+    async (cleanTranscription, { isManual = false, wasArmedWindow = false } = {}) => {
+      const expectWakeWord = !isManual && !wasArmedWindow;
+
+      if (expectWakeWord) {
+        const wakeAnalysis = analyzeWakeWordCall(cleanTranscription);
+
+        if (!wakeAnalysis.called) {
+          if (detectDirectCommandIntent(cleanTranscription)) {
+            console.log(
+              '[Alfred WakeWord] Intenção direta reconhecida:',
+              cleanTranscription
+            );
+            await executeCommand(cleanTranscription, { lockAlreadyAcquired: true });
+            return;
+          }
+          console.log(
+            '[Alfred Standby] Áudio ignorado sem wake word:',
+            cleanTranscription
+          );
+          return;
+        }
+
+        if (!wakeAnalysis.command) {
+          setIsLoading(false);
+          setWakeWordArmedState(true);
+
+          const wakePromptText = 'Sim, senhor? Estou ouvindo.';
+          setMessages((prev) => [
+            ...prev,
+            MessageEntity.createAssistantMessage(wakePromptText),
+          ]);
+
+          await speakWakeWordGreeting();
+          return;
+        }
+
+        setWakeWordArmedState(false);
+        await executeCommand(wakeAnalysis.command, { lockAlreadyAcquired: true });
+        return;
+      }
+
+      const wakeCheck = analyzeWakeWordCall(cleanTranscription);
+      if (wasArmedWindow && wakeCheck.called && !wakeCheck.command) {
+        // Usuário apenas repetiu "Alfred" durante a janela armada: mantém o microfone armado
+        setIsLoading(false);
+        setWakeWordArmedState(true);
+        return;
+      }
+
+      setWakeWordArmedState(false);
+      const finalCommand =
+        wakeCheck.called && wakeCheck.command
+          ? wakeCheck.command
+          : cleanTranscription;
+
+      await executeCommand(finalCommand, { lockAlreadyAcquired: true });
+    },
+    [
+      executeCommand,
+      setIsLoading,
+      setMessages,
+      setWakeWordArmedState,
+      speakWakeWordGreeting,
+    ]
+  );
+
+  /**
    * Processa o arquivo de áudio capturado (seja manual, standby por "Alfred" ou janela armada).
    */
   const processCapturedAudio = useCallback(
@@ -106,18 +190,41 @@ export function useVoiceCommandSystem({
       }
 
       try {
-        const audioFile = new File(uri);
-        const base64Audio = await audioFile.base64();
+        let base64Audio = '';
+        let mimeType = Platform.OS === 'ios' ? 'audio/mp4' : 'audio/m4a';
 
-        if (!base64Audio || base64Audio.length < 600) {
+        if (Platform.OS === 'web') {
+          const blobResp = await fetch(uri);
+          const blob = await blobResp.blob();
+          if (blob.type) {
+            mimeType = blob.type.split(';')[0] || 'audio/webm';
+          } else {
+            mimeType = 'audio/webm';
+          }
+          base64Audio = await new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onloadend = () => {
+              const dataUrl = String(reader.result || '');
+              const commaIndex = dataUrl.indexOf(',');
+              resolve(commaIndex >= 0 ? dataUrl.slice(commaIndex + 1) : '');
+            };
+            reader.onerror = reject;
+            reader.readAsDataURL(blob);
+          });
+        } else {
+          const audioFile = new File(uri);
+          base64Audio = await audioFile.base64();
+        }
+
+        if (!base64Audio || base64Audio.length < 200) {
           setIsLoading(false);
           return;
         }
 
-        const mimeType = Platform.OS === 'ios' ? 'audio/mp4' : 'audio/m4a';
         const transcription = await GeminiGateway.transcribeVoiceCommand(
           base64Audio,
-          mimeType
+          mimeType,
+          { expectWakeWord }
         );
 
         const cleanTranscription = (transcription || '').trim();
@@ -148,57 +255,10 @@ export function useVoiceCommandSystem({
           return;
         }
 
-        if (expectWakeWord) {
-          const wakeAnalysis = analyzeWakeWordCall(cleanTranscription);
-
-          if (!wakeAnalysis.called) {
-            if (detectDirectCommandIntent(cleanTranscription)) {
-              console.log(
-                '[Alfred WakeWord] Intenção direta reconhecida:',
-                cleanTranscription
-              );
-              await executeCommand(cleanTranscription, { lockAlreadyAcquired: true });
-              return;
-            }
-            console.log(
-              '[Alfred Standby] Áudio ignorado sem wake word:',
-              cleanTranscription
-            );
-            return;
-          }
-
-          if (!wakeAnalysis.command) {
-            setIsLoading(false);
-            setWakeWordArmedState(true);
-
-            const wakePromptText = 'Sim, senhor? Estou ouvindo.';
-            setMessages((prev) => [
-              ...prev,
-              MessageEntity.createAssistantMessage(wakePromptText),
-            ]);
-
-            await speakWakeWordGreeting(() => {
-              isBusyRef.current = false;
-              if (handsFreeEnabledRef.current) {
-                startHandsFreeLoopRef.current?.();
-              }
-            });
-            return;
-          }
-
-          setWakeWordArmedState(false);
-          await executeCommand(wakeAnalysis.command, { lockAlreadyAcquired: true });
-          return;
-        }
-
-        setWakeWordArmedState(false);
-        const wakeCheck = analyzeWakeWordCall(cleanTranscription);
-        const finalCommand =
-          wakeCheck.called && wakeCheck.command
-            ? wakeCheck.command
-            : cleanTranscription;
-
-        await executeCommand(finalCommand, { lockAlreadyAcquired: true });
+        await handleTranscribedText(cleanTranscription, {
+          isManual,
+          wasArmedWindow,
+        });
       } catch (error) {
         console.log('Erro ao processar áudio:', error);
         setIsLoading(false);
@@ -229,15 +289,13 @@ export function useVoiceCommandSystem({
       }
     },
     [
-      executeCommand,
+      handleTranscribedText,
       isBusyRef,
       isSpeakingRef,
       setIsLoading,
       setLoadingStage,
       setMessages,
-      setWakeWordArmedState,
       speakText,
-      speakWakeWordGreeting,
     ]
   );
 
@@ -246,6 +304,7 @@ export function useVoiceCommandSystem({
    */
   const startHandsFreeMonitoring = useCallback(async () => {
     if (
+      isStartingMonitorRef.current ||
       !handsFreeEnabledRef.current ||
       isBusyRef.current ||
       isSpeakingRef.current ||
@@ -254,6 +313,123 @@ export function useVoiceCommandSystem({
       return;
     }
 
+    if (Platform.OS === 'web') {
+      const SpeechRec =
+        typeof window !== 'undefined' &&
+        (window.SpeechRecognition || window.webkitSpeechRecognition);
+      if (!SpeechRec) {
+        setIsHandsFreeListening(false);
+        return;
+      }
+
+      if (webRecognitionRef.current) {
+        return;
+      }
+
+      isStartingMonitorRef.current = true;
+      try {
+        const recognition = new SpeechRec();
+        recognition.lang = 'pt-BR';
+        recognition.continuous = true;
+        recognition.interimResults = false;
+
+        recognition.onstart = () => {
+          setIsHandsFreeListening(true);
+        };
+
+        recognition.onresult = async (event) => {
+          if (
+            isBusyRef.current ||
+            isSpeakingRef.current ||
+            isManualRecordingRef.current
+          ) {
+            return;
+          }
+          const lastIdx = event.results.length - 1;
+          const result = event.results[lastIdx];
+          if (!result || !result.isFinal) return;
+
+          const transcript = String(result[0]?.transcript || '').trim();
+          if (!transcript || transcript.length < 2) return;
+
+          const wasArmed = wakeWordArmedRef.current;
+          console.log(
+            '[Alfred Web Speech] Transcrição:',
+            JSON.stringify(transcript),
+            '| Armed:',
+            wasArmed
+          );
+
+          stopWebRecognition();
+          setIsHandsFreeListening(false);
+          isBusyRef.current = true;
+
+          try {
+            await handleTranscribedText(transcript, {
+              isManual: false,
+              wasArmedWindow: wasArmed,
+            });
+          } finally {
+            isBusyRef.current = false;
+            if (
+              handsFreeEnabledRef.current &&
+              !isSpeakingRef.current &&
+              !isManualRecordingRef.current
+            ) {
+              setTimeout(() => {
+                startHandsFreeLoopRef.current?.();
+              }, 350);
+            }
+          }
+        };
+
+        recognition.onerror = (evt) => {
+          const err = evt?.error;
+          setIsHandsFreeListening(false);
+          stopWebRecognition();
+          if (err === 'not-allowed' || err === 'service-not-allowed') {
+            return;
+          }
+          if (
+            handsFreeEnabledRef.current &&
+            !isBusyRef.current &&
+            !isSpeakingRef.current &&
+            !isManualRecordingRef.current
+          ) {
+            setTimeout(() => {
+              startHandsFreeLoopRef.current?.();
+            }, 800);
+          }
+        };
+
+        recognition.onend = () => {
+          setIsHandsFreeListening(false);
+          webRecognitionRef.current = null;
+          if (
+            handsFreeEnabledRef.current &&
+            !isBusyRef.current &&
+            !isSpeakingRef.current &&
+            !isManualRecordingRef.current
+          ) {
+            setTimeout(() => {
+              startHandsFreeLoopRef.current?.();
+            }, 350);
+          }
+        };
+
+        webRecognitionRef.current = recognition;
+        recognition.start();
+      } catch (err) {
+        console.log('Aviso ao iniciar escuta contínua no navegador:', err);
+        stopWebRecognition();
+        setIsHandsFreeListening(false);
+      } finally {
+        isStartingMonitorRef.current = false;
+      }
+      return;
+    }
+
+    isStartingMonitorRef.current = true;
     clearVadInterval();
 
     try {
@@ -264,6 +440,10 @@ export function useVoiceCommandSystem({
         allowsRecording: true,
         playsInSilentMode: true,
       });
+
+      try {
+        await audioRecorder.stop();
+      } catch {}
 
       await audioRecorder.prepareToRecordAsync({
         ...RecordingPresets.HIGH_QUALITY,
@@ -286,6 +466,9 @@ export function useVoiceCommandSystem({
         ) {
           clearVadInterval();
           setIsHandsFreeListening(false);
+          try {
+            await audioRecorder.stop();
+          } catch {}
           return;
         }
 
@@ -309,11 +492,14 @@ export function useVoiceCommandSystem({
 
         const silenceElapsed = now - lastVoiceTime;
         const speechDuration = speechDetected ? now - speechStartTime : 0;
+        const silenceLimitMs = wakeWordArmedRef.current
+          ? VAD_CONFIG.armedSilenceDurationToCommitMs
+          : VAD_CONFIG.silenceDurationToCommitMs;
 
         if (
           speechDetected &&
           speechDuration >= VAD_CONFIG.minSpeechDurationMs &&
-          (silenceElapsed >= VAD_CONFIG.silenceDurationToCommitMs ||
+          (silenceElapsed >= silenceLimitMs ||
             speechDuration >= VAD_CONFIG.maxSingleUtteranceMs)
         ) {
           clearVadInterval();
@@ -348,6 +534,8 @@ export function useVoiceCommandSystem({
     } catch (error) {
       console.log('Aviso ao iniciar monitoramento hands-free:', error);
       setIsHandsFreeListening(false);
+    } finally {
+      isStartingMonitorRef.current = false;
     }
   }, [
     audioRecorder,
@@ -371,11 +559,12 @@ export function useVoiceCommandSystem({
     return () => {
       clearTimeout(bootTimer);
       clearVadInterval();
+      stopWebRecognition();
       if (wakeWordWindowTimeoutRef.current) {
         clearTimeout(wakeWordWindowTimeoutRef.current);
       }
     };
-  }, [clearVadInterval, startHandsFreeMonitoring]);
+  }, [clearVadInterval, startHandsFreeMonitoring, stopWebRecognition]);
 
   /**
    * Alterna o modo de escuta ativa por palavra de ativação ("Alfred").
@@ -387,6 +576,7 @@ export function useVoiceCommandSystem({
 
     if (!nextValue) {
       clearVadInterval();
+      stopWebRecognition();
       setWakeWordArmedState(false);
       setIsHandsFreeListening(false);
       try {
@@ -395,7 +585,13 @@ export function useVoiceCommandSystem({
     } else {
       startHandsFreeMonitoring();
     }
-  }, [audioRecorder, clearVadInterval, setWakeWordArmedState, startHandsFreeMonitoring]);
+  }, [
+    audioRecorder,
+    clearVadInterval,
+    setWakeWordArmedState,
+    startHandsFreeMonitoring,
+    stopWebRecognition,
+  ]);
 
   /**
    * Inicia gravação manual imediata quando o usuário toca no botão "Falar".
@@ -403,6 +599,7 @@ export function useVoiceCommandSystem({
   const startManualRecording = useCallback(async () => {
     try {
       clearVadInterval();
+      stopWebRecognition();
       setIsHandsFreeListening(false);
       isManualRecordingRef.current = true;
       await stopSpeaking();
@@ -458,12 +655,19 @@ export function useVoiceCommandSystem({
     }
   }, [audioRecorder, processCapturedAudio, startHandsFreeMonitoring]);
 
+  const armFollowUpWindow = useCallback(() => {
+    if (handsFreeEnabledRef.current) {
+      setWakeWordArmedState(true);
+    }
+  }, [setWakeWordArmedState]);
+
   return {
     isRecording,
     recordingSeconds,
     handsFreeEnabled,
     isHandsFreeListening,
     wakeWordArmed,
+    armFollowUpWindow,
     startHandsFreeMonitoring,
     toggleHandsFree,
     startManualRecording,
