@@ -13,7 +13,14 @@ function detectLocalLanIp() {
   }
   try {
     const interfaces = os.networkInterfaces();
-    for (const name of Object.keys(interfaces)) {
+    const names = Object.keys(interfaces);
+    // Prioriza adaptadores Wi-Fi / Wireless reais sobre adaptadores virtuais (WSL / Hyper-V)
+    const sortedNames = names.sort((a, b) => {
+      const aWifi = /wi-?fi|wlan|wireless/i.test(a) ? -1 : 1;
+      const bWifi = /wi-?fi|wlan|wireless/i.test(b) ? -1 : 1;
+      return aWifi - bWifi;
+    });
+    for (const name of sortedNames) {
       for (const iface of interfaces[name] || []) {
         if (iface.family === 'IPv4' && !iface.internal) {
           return iface.address;

@@ -6,7 +6,9 @@ function HeaderBarComponent({
   isSpeaking,
   isLoading,
   isListeningWakeWord,
+  isHandsFreeListening,
   isCapturingSpeech,
+  isRecording,
   wakeWordArmed,
   weatherBadge,
   emailConnected,
@@ -19,6 +21,9 @@ function HeaderBarComponent({
   hasMessages,
   onRestartMorning,
 }) {
+  const listeningStandby = Boolean(isListeningWakeWord || isHandsFreeListening);
+  const capturingAudio = Boolean(isCapturingSpeech || isRecording);
+
   let statusLabel = 'Pronto';
   let statusDotColor = colors.semantic.online;
 
@@ -31,10 +36,10 @@ function HeaderBarComponent({
   } else if (wakeWordArmed) {
     statusLabel = 'Atento · Pode falar sua instrução';
     statusDotColor = colors.accent.primary;
-  } else if (isCapturingSpeech) {
+  } else if (capturingAudio) {
     statusLabel = 'Ouvindo chamada...';
     statusDotColor = colors.semantic.danger;
-  } else if (handsFreeEnabled && isListeningWakeWord) {
+  } else if (handsFreeEnabled && listeningStandby) {
     statusLabel = 'Standby · Chame "Alfred"';
     statusDotColor = colors.semantic.online;
   } else if (voiceMuted) {
@@ -52,7 +57,7 @@ function HeaderBarComponent({
               style={[
                 styles.monogram,
                 wakeWordArmed && styles.monogramArmed,
-                isCapturingSpeech && styles.monogramCapturing,
+                capturingAudio && styles.monogramCapturing,
                 isSpeaking && styles.monogramSpeaking,
               ]}
             >
@@ -164,23 +169,25 @@ function HeaderBarComponent({
             </Pressable>
           )}
 
-          <Pressable
-            onPress={onToggleMute}
-            style={({ pressed }) => [
-              styles.controlChip,
-              pressed && styles.controlChipPressed,
-            ]}
-            accessibilityRole="button"
-            accessibilityLabel={
-              voiceMuted ? 'Ativar resposta por voz' : 'Silenciar resposta por voz'
-            }
-          >
-            <Text style={styles.controlChipText}>
-              {voiceMuted ? 'Som: Off' : 'Som: On'}
-            </Text>
-          </Pressable>
+          {onToggleMute ? (
+            <Pressable
+              onPress={onToggleMute}
+              style={({ pressed }) => [
+                styles.controlChip,
+                pressed && styles.controlChipPressed,
+              ]}
+              accessibilityRole="button"
+              accessibilityLabel={
+                voiceMuted ? 'Ativar resposta por voz' : 'Silenciar resposta por voz'
+              }
+            >
+              <Text style={styles.controlChipText}>
+                {voiceMuted ? 'Som: Off' : 'Som: On'}
+              </Text>
+            </Pressable>
+          ) : null}
 
-          {hasMessages && (
+          {hasMessages && onRestartMorning ? (
             <Pressable
               onPress={onRestartMorning}
               disabled={isLoading}
@@ -194,7 +201,7 @@ function HeaderBarComponent({
             >
               <Text style={styles.morningChipText}>Briefing</Text>
             </Pressable>
-          )}
+          ) : null}
         </View>
       </View>
     </View>
@@ -378,4 +385,3 @@ const styles = StyleSheet.create({
     opacity: 0.45,
   },
 });
-

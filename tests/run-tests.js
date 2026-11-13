@@ -4,32 +4,115 @@ const path = require('node:path');
 const parser = require('@babel/parser');
 const babel = require('@babel/core');
 
-// Transpilador leve em memória para importar módulos ES6 do diretório src/ durante os testes
+// Mock leve do React Native e módulos Expo para avaliar StyleSheet.create e inicialização de todos os módulos
+const mockMocks = {
+  'react-native': {
+    Platform: {
+      OS: 'ios',
+      select: (obj) => obj.ios ?? obj.default,
+    },
+    StyleSheet: {
+      create: (styles) => styles,
+    },
+    NativeModules: {
+      SourceCode: { scriptURL: 'http://localhost:8081/index.bundle' },
+    },
+    Linking: {
+      addEventListener: () => ({ remove: () => {} }),
+      getInitialURL: () => Promise.resolve(null),
+    },
+    View: 'View',
+    Text: 'Text',
+    TextInput: 'TextInput',
+    TouchableOpacity: 'TouchableOpacity',
+    Pressable: 'Pressable',
+    ScrollView: 'ScrollView',
+    FlatList: 'FlatList',
+    KeyboardAvoidingView: 'KeyboardAvoidingView',
+    Modal: 'Modal',
+    ActivityIndicator: 'ActivityIndicator',
+    SafeAreaView: 'SafeAreaView',
+    StatusBar: 'StatusBar',
+  },
+  'expo-audio': {
+    AudioModule: { requestRecordingPermissionsAsync: async () => ({ granted: true }) },
+    RecordingPresets: { HIGH_QUALITY: {} },
+    setAudioModeAsync: async () => {},
+    useAudioRecorder: () => ({}),
+    createAudioPlayer: () => ({}),
+  },
+  'expo-file-system': {
+    File: class {},
+  },
+  'expo-file-system/legacy': {
+    documentDirectory: 'file:///docs/',
+    cacheDirectory: 'file:///cache/',
+    EncodingType: { Base64: 'base64' },
+    getInfoAsync: async () => ({ exists: false }),
+    readAsStringAsync: async () => '',
+    writeAsStringAsync: async () => {},
+    deleteAsync: async () => {},
+  },
+  'expo-location': {
+    Accuracy: { Balanced: 3 },
+    requestForegroundPermissionsAsync: async () => ({ status: 'granted' }),
+    getCurrentPositionAsync: async () => ({ coords: { latitude: 0, longitude: 0 } }),
+  },
+  'expo-speech': {
+    stop: async () => {},
+    speak: () => {},
+    getAvailableVoicesAsync: async () => [],
+  },
+};
+
+const moduleCache = new Map();
+
 function loadEsModule(relPath) {
   const fullPath = path.resolve(__dirname, '..', relPath);
+  if (moduleCache.has(fullPath)) {
+    return moduleCache.get(fullPath).exports;
+  }
+
   const source = fs.readFileSync(fullPath, 'utf8');
   const transformed = babel.transformSync(source, {
     filename: fullPath,
     plugins: [
-      require.resolve(
-        '@babel/plugin-transform-modules-commonjs',
-        { paths: [process.cwd()] }
-      ),
+      require.resolve('@babel/plugin-transform-react-jsx', {
+        paths: [process.cwd()],
+      }),
+      require.resolve('@babel/plugin-transform-modules-commonjs', {
+        paths: [process.cwd()],
+      }),
     ],
   });
+
   const mod = { exports: {} };
+  moduleCache.set(fullPath, mod);
+
   const dir = path.dirname(fullPath);
   const customRequire = (spec) => {
+    if (mockMocks[spec]) return mockMocks[spec];
     if (spec.startsWith('.')) {
       const candidate = path.resolve(dir, spec);
-      const resolved = fs.existsSync(candidate + '.js')
-        ? candidate + '.js'
-        : path.join(candidate, 'index.js');
+      let resolved = candidate;
+      if (fs.existsSync(candidate + '.js')) {
+        resolved = candidate + '.js';
+      } else if (fs.existsSync(path.join(candidate, 'index.js'))) {
+        resolved = path.join(candidate, 'index.js');
+      }
       return loadEsModule(path.relative(path.resolve(__dirname, '..'), resolved));
     }
     return require(spec);
   };
-  const fn = new Function('exports', 'require', 'module', '__filename', '__dirname', transformed.code);
+
+  const fn = new Function(
+    'exports',
+    'require',
+    'module',
+    '__filename',
+    '__dirname',
+    transformed.code
+  );
   fn(mod.exports, customRequire, mod, fullPath, dir);
   return mod.exports;
 }
@@ -52,8 +135,8 @@ function runTest(name, fn) {
   }
 }
 
-// 1. Validação de AST e Resolução de Módulos em todos os arquivos JS/JSX
-runTest('Integridade de Sintaxe AST e Imports em 100% dos módulos', () => {
+// 1. Validação de AST, Imports e Execução em Runtime (StyleSheet.create / Tokens) de TODOS os módulos
+runTest('Integridade de AST, Imports e Avaliação Runtime (StyleSheet/Tokens) em 100% dos módulos', () => {
   function walk(dir) {
     let results = [];
     for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
@@ -64,9 +147,10 @@ runTest('Integridade de Sintaxe AST e Imports em 100% dos módulos', () => {
     return results;
   }
 
+  const rootDir = path.resolve(__dirname, '..');
   const files = [
-    path.resolve(__dirname, '..', 'App.js'),
-    ...walk(path.resolve(__dirname, '..', 'src')),
+    path.resolve(rootDir, 'App.js'),
+    ...walk(path.resolve(rootDir, 'src')),
   ];
 
   for (const file of files) {
@@ -90,6 +174,8 @@ runTest('Integridade de Sintaxe AST e Imports em 100% dos módulos', () => {
         }
       }
     }
+    // Executa o módulo para garantir que nenhum StyleSheet.create ou token lance TypeError em runtime
+    loadEsModule(path.relative(rootDir, file));
   }
 });
 

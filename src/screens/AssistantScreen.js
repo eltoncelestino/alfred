@@ -159,12 +159,19 @@ export function AssistantScreen() {
       <HeaderBar
         isLoading={isLoading}
         isRecording={isRecording}
+        isCapturingSpeech={isRecording}
         isSpeaking={isSpeaking}
         onStopSpeaking={stopSpeaking}
         handsFreeEnabled={handsFreeEnabled}
         isHandsFreeListening={isHandsFreeListening}
+        isListeningWakeWord={isHandsFreeListening}
         wakeWordArmed={wakeWordArmed}
         onToggleHandsFree={toggleHandsFree}
+        weatherBadge={weatherData?.badge}
+        emailConnected={Boolean(emailConfig?.connected)}
+        onOpenEmailModal={handleOpenEmailModal}
+        hasMessages={messages.length > 1}
+        onRestartMorning={startMorningRoutine}
       />
 
       <ArmedListeningBanner visible={wakeWordArmed && !isLoading} />
