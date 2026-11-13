@@ -1,7 +1,9 @@
 import React, { memo } from 'react';
-import { StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Platform, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { colors, layout, radii, spacing, typography } from '../../../core/theme/tokens';
 import { formatDurationSeconds } from '../../../utils/formatters';
+
+const COMPOSER_CONTROL_HEIGHT = Math.max(layout.minTouchTarget, 48);
 
 function ComposerBarComponent({
   inputText,
@@ -36,6 +38,7 @@ function ComposerBarComponent({
           onChangeText={onChangeText}
           editable={!isRecording}
           multiline
+          numberOfLines={1}
           maxLength={600}
           returnKeyType="send"
           blurOnSubmit={false}
@@ -138,7 +141,7 @@ const styles = StyleSheet.create({
   },
   input: {
     flex: 1,
-    minHeight: layout.minTouchTarget,
+    minHeight: COMPOSER_CONTROL_HEIGHT,
     maxHeight: 112,
     backgroundColor: colors.bg.tertiary,
     color: colors.text.primary,
@@ -146,13 +149,19 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border.strong,
     paddingHorizontal: spacing.lg,
-    paddingTop: spacing.md,
-    paddingBottom: spacing.md,
+    paddingTop: 13,
+    paddingBottom: 13,
     ...typography.bodySmall,
     marginRight: spacing.sm,
+    ...(Platform.OS === 'web'
+      ? {
+          outlineStyle: 'none',
+          boxSizing: 'border-box',
+        }
+      : null),
   },
   primaryActionBtn: {
-    minHeight: layout.minTouchTarget,
+    height: COMPOSER_CONTROL_HEIGHT,
     paddingHorizontal: spacing.lg + 2,
     borderRadius: radii.md,
     backgroundColor: colors.accent.primary,
@@ -164,7 +173,7 @@ const styles = StyleSheet.create({
     color: colors.text.inverse,
   },
   voiceActionBtn: {
-    minHeight: layout.minTouchTarget,
+    height: COMPOSER_CONTROL_HEIGHT,
     paddingHorizontal: spacing.lg,
     borderRadius: radii.md,
     backgroundColor: colors.bg.tertiary,

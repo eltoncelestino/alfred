@@ -228,14 +228,12 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface.elevated,
     borderBottomWidth: 1,
     borderBottomColor: colors.border.subtle,
-    paddingHorizontal: spacing.md,
-    paddingTop: spacing.xs,
-    paddingBottom: spacing.sm,
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.sm,
+    paddingBottom: spacing.md,
   },
   inner: {
-    maxWidth: 720,
     width: '100%',
-    alignSelf: 'center',
   },
   topRow: {
     flexDirection: 'row',
